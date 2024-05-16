@@ -15,5 +15,5 @@ pub mod eviction;
 pub mod store;
 
 pub use cache::Cache;
-pub use eviction::LRU;
+pub use eviction::{ LRU, FIFO, LFU, MRU, RandomEviction, SLRU };
 pub use store::Store;

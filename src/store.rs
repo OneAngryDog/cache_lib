@@ -16,7 +16,7 @@ pub struct Store<K, V>
 where
     K: Eq + Hash,
 {
-    pub(crate) entries: HashMap<K, V>
+    pub entries: HashMap<K, V>
 }
 
 impl<K, V> Store<K, V>
