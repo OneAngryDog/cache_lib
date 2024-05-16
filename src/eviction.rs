@@ -74,7 +74,7 @@ where
 
     fn on_access(&mut self, key: &K) {
         self.current_time += 1;
-        self.use_order.insert(key.clone(), self.current_time);
+        self.use_order.entry(*key).and_modify(|e| *e = self.current_time);
     }
 
     fn on_remove(&mut self, key: &K) {
@@ -130,9 +130,7 @@ where
     }
 
     fn on_remove(&mut self, key: &K) {
-        if let Some(pos) = self.queue.iter().position(|x| x == key) {
-            self.queue.remove(pos);
-        }
+        self.queue.retain(|x| x != key);
     }
 
     fn evict(&mut self) -> Option<K> {
@@ -303,8 +301,8 @@ where
 // ==============================================================================================
 
 pub struct SLRU<K>
-where
-    K: Eq + Hash + Clone + Copy,
+    where
+        K: Eq + Hash + Clone + Copy,
 {
     probationary: LRU<K>,
     protected: LRU<K>,
@@ -313,8 +311,8 @@ where
 }
 
 impl<K> SLRU<K>
-where
-    K: Eq + Hash + Clone + Copy,
+    where
+        K: Eq + Hash + Clone + Copy,
 {
     /// Creates a new SLRU eviction policy instance
     ///
@@ -334,24 +332,26 @@ where
     }
 
     fn move_to_protected(&mut self, key: &K) {
-        if self.protected.use_order.len() >= self.protected_capacity {
-            if let Some(evicted_key) = self.protected.evict() {
-                self.protected.on_remove(&evicted_key);
+        if self.probationary.use_order.contains_key(key) {
+            if self.protected.use_order.len() >= self.protected_capacity {
+                if let Some(evicted_key) = self.protected.evict() {
+                    self.protected.on_remove(&evicted_key);
+                }
             }
+            self.probationary.on_remove(key);
+            self.protected.on_insert(key);
         }
-        self.probationary.on_remove(key);
-        self.protected.on_insert(key);
     }
 }
 
 impl<K> EvictionPolicy<K> for SLRU<K>
-where
-    K: Eq + Hash + Clone + Copy,
+    where
+        K: Eq + Hash + Clone + Copy,
 {
     fn on_insert(&mut self, key: &K) {
         if self.probationary.use_order.len() >= self.probationary_capacity {
             if let Some(evicted_key) = self.probationary.evict() {
-                self.protected.on_remove(&evicted_key);
+                self.probationary.on_remove(&evicted_key);
             }
         }
         self.probationary.on_insert(key);
@@ -360,8 +360,9 @@ where
     fn on_access(&mut self, key: &K) {
         if self.probationary.use_order.contains_key(key) {
             self.move_to_protected(key);
+        } else {
+            self.protected.on_access(key);
         }
-        self.protected.on_access(key);
     }
 
     fn on_remove(&mut self, key: &K) {
@@ -373,10 +374,9 @@ where
     }
 
     fn evict(&mut self) -> Option<K> {
-        if self.probationary.use_order.len() >= self.probationary_capacity {
-            self.probationary.evict()
-        } else {
-            self.protected.evict()
+        if let Some(evicted_key) = self.probationary.evict() {
+            return Some(evicted_key);
         }
+        self.protected.evict()
     }
 }
