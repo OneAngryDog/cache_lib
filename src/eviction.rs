@@ -40,16 +40,16 @@ pub trait EvictionPolicy<K> {
 // ==============================================================================================
 
 pub struct LRU<K>
-where
-    K: Eq + Hash + Clone + Copy,
+    where
+        K: Eq + Hash + Copy,
 {
     use_order: HashMap<K, usize>,
     current_time: usize,
 }
 
 impl<K> LRU<K>
-where
-    K: Eq + Hash + Clone + Copy,
+    where
+        K: Eq + Hash + Copy,
 {
     /// Creates a new LRU eviction policy instance.
     ///
@@ -61,20 +61,37 @@ where
             current_time: 0,
         }
     }
+
+    /// Resets the current time and adjusts timestamps in `use_order` to handle overflow.
+    fn handle_overflow(&mut self) {
+        let min_time = *self.use_order.values().min().unwrap_or(&0);
+        for value in self.use_order.values_mut() {
+            *value -= min_time;
+        }
+        self.current_time -= min_time;
+    }
 }
 
 impl<K> EvictionPolicy<K> for LRU<K>
-where
-    K: Eq + Hash + Clone + Copy,
+    where
+        K: Eq + Hash + Copy,
 {
     fn on_insert(&mut self, key: &K) {
         self.current_time += 1;
-        self.use_order.insert(key.clone(), self.current_time);
+        if self.current_time == usize::MAX {
+            self.handle_overflow();
+        }
+        self.use_order.insert(*key, self.current_time);
     }
 
     fn on_access(&mut self, key: &K) {
         self.current_time += 1;
-        self.use_order.entry(*key).and_modify(|e| *e = self.current_time);
+        if self.current_time == usize::MAX {
+            self.handle_overflow();
+        }
+        if let Some(entry) = self.use_order.get_mut(key) {
+            *entry = self.current_time;
+        }
     }
 
     fn on_remove(&mut self, key: &K) {
@@ -96,17 +113,17 @@ where
 // ==============================================================================================
 
 pub struct FIFO<K>
-where
-    K: Eq + Hash + Clone + Copy,
+    where
+        K: Eq + Hash + Copy,
 {
-    queue: VecDeque<K>
+    queue: VecDeque<K>,
 }
 
 impl<K> FIFO<K>
-where
-    K: Eq + Hash + Clone + Copy,
+    where
+        K: Eq + Hash + Copy,
 {
-    /// Creates a new FIFO eviction policy instance
+    /// Creates a new FIFO eviction policy instance.
     ///
     /// # Returns
     /// A `FIFO` instance.
@@ -118,11 +135,11 @@ where
 }
 
 impl<K> EvictionPolicy<K> for FIFO<K>
-where
-    K: Eq + Hash + Clone + Copy,
+    where
+        K: Eq + Hash + Copy,
 {
     fn on_insert(&mut self, key: &K) {
-        self.queue.push_back(key.clone());
+        self.queue.push_back(*key);
     }
 
     fn on_access(&mut self, _key: &K) {
@@ -130,7 +147,9 @@ where
     }
 
     fn on_remove(&mut self, key: &K) {
-        self.queue.retain(|x| x != key);
+        if let Some(pos) = self.queue.iter().position(|x| x == key) {
+            self.queue.remove(pos);
+        }
     }
 
     fn evict(&mut self) -> Option<K> {
@@ -145,14 +164,14 @@ where
 /// Least Frequently Used
 pub struct LFU<K>
 where
-    K: Eq + Hash + Clone + Copy,
+    K: Eq + Hash + Copy,
 {
     frequency: HashMap<K, usize>
 }
 
 impl<K> LFU<K>
     where
-        K: Eq + Hash + Clone + Copy,
+        K: Eq + Hash + Copy,
 {
     /// Creates a new LFU eviction policy instance.
     ///
@@ -167,7 +186,7 @@ impl<K> LFU<K>
 
 impl<K> EvictionPolicy<K> for LFU<K>
     where
-        K: Eq + Hash + Clone + Copy,
+        K: Eq + Hash + Copy,
 {
     fn on_insert(&mut self, key: &K) {
         self.frequency.insert(key.clone(), 1);
@@ -200,7 +219,7 @@ impl<K> EvictionPolicy<K> for LFU<K>
 /// Most Recently Used
 pub struct MRU<K>
 where
-    K: Eq + Hash + Clone + Copy,
+    K: Eq + Hash + Copy,
 {
     use_order: HashMap<K, usize>,
     current_time: usize,
@@ -208,7 +227,7 @@ where
 
 impl<K> MRU<K>
 where
-    K: Eq + Hash + Clone + Copy,
+    K: Eq + Hash + Copy,
 {
     /// Creates a new eviction policy instance
     ///
@@ -224,7 +243,7 @@ where
 
 impl<K> EvictionPolicy<K> for MRU<K>
 where
-    K: Eq + Hash + Clone + Copy,
+    K: Eq + Hash + Copy,
 {
     fn on_insert(&mut self, key: &K) {
         self.current_time += 1;
@@ -257,14 +276,14 @@ where
 /// Random Eviction Policy
 pub struct RandomEviction<K>
 where
-    K: Eq + Hash + Clone + Copy,
+    K: Eq + Hash + Copy,
 {
     keys: HashMap<K, ()>
 }
 
 impl<K> RandomEviction<K>
 where
-    K: Eq + Hash + Clone + Copy,
+    K: Eq + Hash + Copy,
 {
     /// Creates a new Random Eviction policy instance.
     ///
@@ -279,7 +298,7 @@ where
 
 impl<K> EvictionPolicy<K> for RandomEviction<K>
 where
-    K: Eq + Hash + Clone + Copy,
+    K: Eq + Hash + Copy,
 {
     fn on_insert(&mut self, key: &K) {
         self.keys.insert(key.clone(), ());
@@ -306,7 +325,7 @@ where
 /// Segmented Least Recently Used
 pub struct SLRU<K>
     where
-        K: Eq + Hash + Clone + Copy,
+        K: Eq + Hash + Copy,
 {
     probationary: LRU<K>,
     protected: LRU<K>,
@@ -316,7 +335,7 @@ pub struct SLRU<K>
 
 impl<K> SLRU<K>
     where
-        K: Eq + Hash + Clone + Copy,
+        K: Eq + Hash + Copy,
 {
     /// Creates a new SLRU eviction policy instance
     ///
@@ -350,7 +369,7 @@ impl<K> SLRU<K>
 
 impl<K> EvictionPolicy<K> for SLRU<K>
     where
-        K: Eq + Hash + Clone + Copy,
+        K: Eq + Hash + Copy,
 {
     fn on_insert(&mut self, key: &K) {
         if self.probationary.use_order.len() >= self.probationary_capacity {
@@ -392,7 +411,7 @@ impl<K> EvictionPolicy<K> for SLRU<K>
 /// Segmented First In First Out
 pub struct SFIFO<K>
 where
-    K: Eq + Hash + Clone + Copy,
+    K: Eq + Hash + Copy,
 {
     segments: Vec<VecDeque<K>>,
     segment_capacity: usize,
@@ -400,7 +419,7 @@ where
 
 impl<K> SFIFO<K>
 where
-    K: Eq + Hash + Clone + Copy,
+    K: Eq + Hash + Copy,
 {
     /// Creates a new SFIFO eviction policy instance
     ///
@@ -433,7 +452,7 @@ where
 
 impl<K> EvictionPolicy<K> for SFIFO<K>
 where
-    K: Eq + Hash + Clone + Copy,
+    K: Eq + Hash + Copy,
 {
     fn on_insert(&mut self, key: &K) {
         let index = self.segment_index(key);
@@ -469,7 +488,7 @@ where
 /// K-Largest Recently Used
 pub struct KLRU<K>
     where
-        K: Eq + Hash + Clone + Copy,
+        K: Eq + Hash + Copy,
 {
     use_order: VecDeque<K>,
     k: usize,
@@ -477,7 +496,7 @@ pub struct KLRU<K>
 
 impl<K> KLRU<K>
     where
-        K: Eq + Hash + Clone + Copy,
+        K: Eq + Hash + Copy,
 {
     /// Creates a new KLRU eviction policy instance.
     ///
@@ -496,7 +515,7 @@ impl<K> KLRU<K>
 
 impl<K> EvictionPolicy<K> for KLRU<K>
     where
-        K: Eq + Hash + Clone + Copy,
+        K: Eq + Hash + Copy,
 {
     fn on_insert(&mut self, key: &K) {
         self.use_order.push_back(*key);
@@ -529,14 +548,14 @@ impl<K> EvictionPolicy<K> for KLRU<K>
 /// Second-Chance Eviction Policy
 pub struct SecondChance<K>
     where
-        K: Eq + Hash + Clone + Copy,
+        K: Eq + Hash + Copy,
 {
     queue: VecDeque<(K, bool)>,
 }
 
 impl<K> SecondChance<K>
     where
-        K: Eq + Hash + Clone + Copy,
+        K: Eq + Hash + Copy,
 {
     /// Creates a new Second-Chance eviction policy instance
     ///
@@ -551,7 +570,7 @@ impl<K> SecondChance<K>
 
 impl<K> EvictionPolicy<K> for SecondChance<K>
     where
-        K: Eq + Hash + Clone + Copy,
+        K: Eq + Hash + Copy,
 {
     fn on_insert(&mut self, key: &K) {
         self.queue.push_back((*key, false));
@@ -586,7 +605,7 @@ impl<K> EvictionPolicy<K> for SecondChance<K>
 /// Adaptive Replacement Cache
 pub struct ARC<K>
     where
-        K: Eq + Hash + Clone + Copy,
+        K: Eq + Hash + Copy,
 {
     t1: VecDeque<K>,
     t2: VecDeque<K>,
@@ -598,7 +617,7 @@ pub struct ARC<K>
 
 impl<K> ARC<K>
     where
-        K: Eq + Hash + Clone + Copy,
+        K: Eq + Hash + Copy,
 {
     /// Creates a new ARC eviction policy instance
     ///
@@ -631,7 +650,7 @@ impl<K> ARC<K>
 
 impl<K> EvictionPolicy<K> for ARC<K>
     where
-        K: Eq + Hash + Clone + Copy,
+        K: Eq + Hash + Copy,
 {
     fn on_insert(&mut self, key: &K) {
         if self.t1.contains(key) || self.t2.contains(key) {

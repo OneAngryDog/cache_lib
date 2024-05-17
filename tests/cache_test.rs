@@ -86,23 +86,23 @@ fn test_store_operations() {
 
     // Test insertion and retrieval
     store.insert(key1.clone(), value1.clone());
-    assert_eq!(store.get(key1), Some(&value1));
+    assert_eq!(store.get(&key1), Some(&value1));
 
     // Test updating a value
     store.insert(key1.clone(), value2.clone());
-    assert_eq!(store.get(key1), Some(&value2));
+    assert_eq!(store.get(&key1), Some(&value2));
 
     // Test inserting a second key
     store.insert(key2.clone(), value1.clone());
-    assert_eq!(store.get(key2), Some(&value1));
+    assert_eq!(store.get(&key2), Some(&value1));
 
     // Test removing a key
-    assert_eq!(store.remove(key1), Some(value2));
-    assert_eq!(store.get(key1), None);
+    assert_eq!(store.remove(&key1), Some(value2));
+    assert_eq!(store.get(&key1), None);
 
     // Test contains_key
-    assert_eq!(store.contains_key(key2), true);
-    assert_eq!(store.contains_key(key1), false);
+    assert_eq!(store.contains_key(&key2), true);
+    assert_eq!(store.contains_key(&key1), false);
 }
 
 /// Tests the FIFO eviction policy.

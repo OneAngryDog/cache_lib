@@ -14,8 +14,8 @@ use crate::store::Store;
 /// * `K`: The type of the keys in the cache. Must implement `Eq`, `Hash`, and `Clone`.
 /// * `V`: The type of the values in the cache.
 pub struct Cache<K, V>
-    where
-        K: Eq + Hash + Clone,
+where
+    K: Eq + Hash + Clone,
 {
     store: Store<K, V>,
     eviction_policy: Box<dyn EvictionPolicy<K>>,
@@ -23,8 +23,8 @@ pub struct Cache<K, V>
 }
 
 impl<K, V> Cache<K, V>
-    where
-        K: Eq + Hash + Clone,
+where
+    K: Eq + Hash + Clone,
 {
     /// Creates a new Cache instance with the given eviction policy and capacity.
     ///
@@ -51,11 +51,27 @@ impl<K, V> Cache<K, V>
     pub fn set(&mut self, key: K, value: V) {
         if self.store.entries.len() >= self.capacity {
             if let Some(evicted_key) = self.eviction_policy.evict() {
-                self.store.remove(evicted_key);
+                self.store.remove(&evicted_key);
             }
         }
         self.store.insert(key.clone(), value);
         self.eviction_policy.on_insert(&key);
+    }
+
+    /// Retrieves a value associated with a given key from the cache.
+    ///
+    /// # Parameters
+    /// * `key`: The key associated with the value to be returned.
+    ///
+    /// # Returns
+    /// An `Option` containing the value, or `None` if no value is found.
+    pub fn get(&mut self, key: &K) -> Option<&V> {
+        if self.store.contains_key(key) {
+            self.eviction_policy.on_access(key);
+            self.store.get(key)
+        } else {
+            None
+        }
     }
 
     /// Removes a key-value pair from the cache.
@@ -65,24 +81,8 @@ impl<K, V> Cache<K, V>
     ///
     /// # Returns
     /// An `Option` containing the removed value if it exists, or `None` if no value is found.
-    pub fn get(&mut self, key: &K) -> Option<&V> {
-        if self.store.contains_key(key.clone()) {
-            self.eviction_policy.on_access(key);
-            self.store.get(key.clone())
-        } else {
-            None
-        }
-    }
-
-    /// Checks to see if the store contains a key-value pair for the given key.
-    ///
-    /// # Parameters
-    /// * `key`: The key to check.
-    ///
-    /// # Returns
-    /// `True` if they key-value pair exists, otherwise `False`
     pub fn remove(&mut self, key: &K) -> Option<V> {
         self.eviction_policy.on_remove(key);
-        self.store.remove(key.clone())
+        self.store.remove(key)
     }
 }

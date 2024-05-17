@@ -11,12 +11,12 @@ use std::hash::Hash;
 ///
 /// # Type Parameters
 /// * `K`: The type of the keys in the cache. Must implement `Eq` and `Hash`.
-/// * `V`: The type of values in the cache
+/// * `V`: The type of values in the cache.
 pub struct Store<K, V>
 where
     K: Eq + Hash,
 {
-    pub entries: HashMap<K, V>
+    pub entries: HashMap<K, V>,
 }
 
 impl<K, V> Store<K, V>
@@ -50,8 +50,8 @@ where
     ///
     /// # Returns
     /// An `Option` containing the value, or `None` if no value is found.
-    pub fn get(&mut self, key: K) -> Option<&V> {
-        self.entries.get(&key)
+    pub fn get(&self, key: &K) -> Option<&V> {
+        self.entries.get(key)
     }
 
     /// Removes a key-value pair from the cache.
@@ -61,8 +61,8 @@ where
     ///
     /// # Returns
     /// An `Option` containing the removed value if it exists, or `None` if no value is found.
-    pub fn remove(&mut self, key: K) -> Option<V> {
-        self.entries.remove(&key)
+    pub fn remove(&mut self, key: &K) -> Option<V> {
+        self.entries.remove(key)
     }
 
     /// Checks to see if the store contains a key-value pair for the given key.
@@ -71,8 +71,8 @@ where
     /// * `key`: The key to check.
     ///
     /// # Returns
-    /// `True` if they key-value pair exists, otherwise `False`
-    pub fn contains_key(&mut self, key: K) -> bool {
-        self.entries.contains_key(&key)
+    /// `true` if the key-value pair exists, otherwise `false`.
+    pub fn contains_key(&self, key: &K) -> bool {
+        self.entries.contains_key(key)
     }
 }
